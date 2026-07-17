@@ -1,0 +1,1069 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>A.D.A.M. Advanced Digital Analytic Manager</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            background-color: transparent; /* Full transparency pass-through for glass overlays */
+            color: #00C8FF; 
+            font-family: 'OCR A Extended', 'Orbitron', monospace; 
+            width: 600px;
+            height: 600px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            text-transform: uppercase;
+            border-radius: 28px;
+        }
+        
+        #hud-container {
+            width: 100%;
+            height: 100%;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            position: relative;
+            background: rgba(0, 0, 0, 0.45); /* Low opacity tint to ensure daylight readability */
+            border-radius: 28px;
+        }
+        .hud-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 11px;
+            letter-spacing: 2px;
+            opacity: 0.9;
+        }
+        .hud-decks {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 5px;
+            border-bottom: 1px solid #00C8FF;
+            padding: 8px 0;
+            margin-bottom: 12px;
+        }
+        .deck-item {
+            font-size: 10px;
+            color: rgba(0, 200, 255, 0.4); 
+            cursor: pointer;
+            padding: 4px;
+            border: 1px solid transparent;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background: none;
+        }
+        .deck-item:hover {
+            color: #00C8FF;
+            border-color: #00C8FF;
+        }
+        .deck-item.active {
+            color: #FFFFFF;
+            background: rgba(0, 200, 255, 0.25);
+            border-color: #00C8FF;
+            font-weight: 700;
+        }
+        .icon { font-size: 16px; margin-bottom: 2px; }
+        .hud-viewport {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            overflow: hidden;
+            border: 1px solid #00C8FF;
+            border-radius: 16px;
+            padding: 12px;
+            position: relative;
+            background: rgba(0, 5, 15, 0.3);
+        }
+        
+        .corner-indicator {
+            position: absolute;
+            font-size: 9px;
+            opacity: 0.8;
+        }
+        .top-left { top: 5px; left: 5px; }
+        .top-right { top: 5px; right: 5px; }
+        .bottom-left { bottom: 5px; left: 5px; }
+        .bottom-right { bottom: 5px; right: 5px; }
+        .briefing-block { 
+            font-size: 13px; 
+            line-height: 1.45; 
+            color: #FFFFFF; 
+            text-align: left;
+            text-shadow: 0 0 4px #00C8FF;
+            overflow-y: auto;
+            max-height: 100%;
+            padding-right: 5px;
+        }
+        .briefing-block::-webkit-scrollbar { width: 3px; }
+        .briefing-block::-webkit-scrollbar-thumb { background: #00C8FF; }
+        .loading-pulse {
+            font-size: 14px;
+            letter-spacing: 3px;
+            text-align: center;
+            animation: pulse-glow 1.5s infinite ease-in-out;
+            color: #00C8FF;
+        }
+        @keyframes pulse-glow {
+            0% { opacity: 0.3; text-shadow: 0 0 0px #00C8FF; }
+            50% { opacity: 1; text-shadow: 0 0 8px #00C8FF; }
+            100% { opacity: 0.3; text-shadow: 0 0 0px #00C8FF; }
+        }
+        .data-grid {
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            overflow-y: auto;
+            max-height: 100%;
+            padding-right: 5px;
+        }
+        .data-grid::-webkit-scrollbar { width: 3px; }
+        .data-grid::-webkit-scrollbar-thumb { background: #00C8FF; }
+        .hud-row {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr;
+            align-items: center;
+            padding: 7px 0;
+            border-bottom: 1px solid rgba(0, 200, 255, 0.15);
+            font-size: 13px;
+        }
+        /* Rows that need to wrap onto multiple lines (headlines etc) use flex-start
+           alignment so text doesn't get vertically squashed as it grows taller */
+        .hud-row.wrap-row {
+            align-items: flex-start;
+            padding: 9px 0;
+        }
+        .wrap-text {
+            white-space: normal;
+            word-break: break-word;
+            overflow-wrap: break-word;
+            line-height: 1.4;
+        }
+        .feed-status {
+            font-size: 9px;
+            opacity: 0.65;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            gap: 6px;
+        }
+        .alert-high { color: #FF2A2A !important; text-shadow: 0 0 5px #FF2A2A; }
+        .success-low { color: #00FF33 !important; }
+        .stock-search-bar {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 8px;
+        }
+        .stock-search-input {
+            flex-grow: 1;
+            background: rgba(0, 200, 255, 0.08);
+            border: 1px solid rgba(0, 200, 255, 0.5);
+            border-radius: 4px;
+            color: #FFFFFF;
+            font-family: inherit;
+            font-size: 12px;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            padding: 6px 8px;
+            outline: none;
+        }
+        .stock-search-input::placeholder { color: rgba(0, 200, 255, 0.4); text-transform: uppercase; }
+        .stock-search-input:focus { border-color: #00C8FF; box-shadow: 0 0 6px rgba(0, 200, 255, 0.5); }
+        .stock-search-btn {
+            background: rgba(0, 200, 255, 0.15);
+            border: 1px solid #00C8FF;
+            border-radius: 4px;
+            color: #00C8FF;
+            font-family: inherit;
+            font-size: 11px;
+            letter-spacing: 1px;
+            padding: 6px 10px;
+            cursor: pointer;
+        }
+        .stock-search-btn:hover { background: rgba(0, 200, 255, 0.3); color: #FFFFFF; }
+        .watchlist-divider {
+            font-size: 9px;
+            opacity: 0.6;
+            letter-spacing: 2px;
+            margin: 6px 0 4px;
+            border-top: 1px solid rgba(0, 200, 255, 0.15);
+            padding-top: 6px;
+        }
+        .remove-btn {
+            background: none;
+            border: none;
+            color: rgba(255, 42, 42, 0.7);
+            font-family: inherit;
+            font-size: 13px;
+            cursor: pointer;
+            padding: 0 0 0 6px;
+            line-height: 1;
+        }
+        .remove-btn:hover { color: #FF2A2A; }
+        .watchlist-symbol-cell { display: flex; align-items: center; }
+        .hud-footer {
+            display: flex;
+            justify-content: space-between;
+            font-size: 10px;
+            border-top: 1px solid rgba(0, 200, 255, 0.2);
+            padding-top: 8px;
+            opacity: 0.7;
+            letter-spacing: 1px;
+        }
+    </style>
+</head>
+<body>
+    <div id="hud-container">
+        <div class="hud-header">
+            <span>A.D.A.M. // Advanced Digital Analytic Manager v13.0</span>
+            <span id="sys-clock">00:00:00</span>
+        </div>
+        <div class="hud-decks" id="deck-bar">
+            <div class="deck-item active" onclick="switchDeck(0)">
+                <span class="icon">💬</span>
+                <span>STATUS</span>
+            </div>
+            <div class="deck-item" onclick="switchDeck(1)">
+                <span class="icon">📈</span>
+                <span>MARKETS</span>
+            </div>
+            <div class="deck-item" onclick="switchDeck(2)">
+                <span class="icon">📰</span>
+                <span>WIRE</span>
+            </div>
+            <div class="deck-item" onclick="switchDeck(3)">
+                <span class="icon">⚔️</span>
+                <span>CONFLICT</span>
+            </div>
+            <div class="deck-item" onclick="switchDeck(4)">
+                <span class="icon">☢️</span>
+                <span>DISASTERS</span>
+            </div>
+        </div>
+        <div class="hud-viewport" id="viewport-target">
+            <span class="corner-indicator top-left">SYST: ONLINE</span>
+            <span class="corner-indicator top-right">DECK: 01</span>
+            <span class="corner-indicator bottom-left">SYNC: PENDING</span>
+            <span class="corner-indicator bottom-right">SEC: AUTO</span>
+            <div class='briefing-block'>INITIALIZING TRANSPARENT SPACE ENVELOPE...</div>
+        </div>
+        <div class="hud-footer">
+            <span>GESTURE: SWIPE / TAP</span>
+            <span id="deck-index-indicator">DECK 1 / 5</span>
+        </div>
+    </div>
+    <script>
+        /* ===================================================================
+           STATE
+
+           Every live source below follows the same pattern:
+             1. Try a direct fetch to the real public API (works once this is
+                hosted/deployed for real, e.g. on the glasses' webview).
+             2. If that's blocked or fails (as it will be inside Claude.ai's
+                artifact sandbox, which only allows network calls to
+                api.anthropic.com), fall back to asking Claude — with the
+                web_search tool enabled — to look the data up instead.
+             3. If BOTH fail, keep the last known good value on screen and
+                surface the real error text so it's debuggable without devtools.
+        =================================================================== */
+        let activeDeckIndex = 0;
+        const TOTAL_DECKS = 5;
+
+        let isFetchingMarkets = false;
+        let isFetchingWire = false;
+        let isFetchingDisasters = false;
+        let isFetchingBriefing = false;
+        let stockSearchQuery = '';
+
+        let appData = {
+            briefing: "COMPILING GLOBAL STRATEGIC DOSSIER. LOCAL TELEMETRY CORRIDORS ENGAGED...",
+            briefingLive: false,
+            briefingError: null,
+
+            stocks: [
+                { symbol: 'SPY-CORE', price: '---.--', change: 0 },
+                { symbol: 'TECH-QQQ', price: '---.--', change: 0 },
+                { symbol: 'M-BTC', price: '---.--', change: 0 },
+                { symbol: 'M-SOL', price: '---.--', change: 0 }
+            ],
+            stocksLive: false,
+            stocksMethod: null, // 'direct' | 'ai-search' | null
+            stocksError: null,
+            lastStockSync: null,
+
+            // User-searched tickers, kept separate from the core index list above.
+            // Each entry: { id, symbol, price, change, status: 'loading'|'ok'|'error', error }
+            watchlist: [],
+
+            news: [],
+            newsLive: false,
+            newsMethod: null,
+            newsError: null,
+
+            conflict: [],
+            conflictLive: false,
+            conflictMethod: null,
+            conflictError: null,
+
+            lastWireSync: null,
+
+            disasters: [],
+            disastersLive: false,
+            disastersMethod: null,
+            disastersError: null,
+            lastDisasterSync: null
+        };
+
+        /* ===================================================================
+           NETWORK HELPERS
+        =================================================================== */
+        async function fetchWithTimeout(url, options = {}, timeoutMs = 8000) {
+            const controller = new AbortController();
+            const id = setTimeout(() => controller.abort(), timeoutMs);
+            try {
+                const res = await fetch(url, { ...options, signal: controller.signal });
+                clearTimeout(id);
+                return res;
+            } catch (e) {
+                clearTimeout(id);
+                throw e;
+            }
+        }
+
+        // Direct third-party calls sometimes need a CORS hop (Yahoo Finance doesn't
+        // send CORS headers). Try direct first, then a couple of public proxies.
+        async function fetchJsonSmart(url) {
+            const attempts = [
+                url,
+                `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+                `https://corsproxy.io/?url=${encodeURIComponent(url)}`
+            ];
+            let lastErr;
+            for (const attemptUrl of attempts) {
+                try {
+                    const res = await fetchWithTimeout(attemptUrl, {}, 6000);
+                    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                    return await res.json();
+                } catch (e) {
+                    lastErr = e;
+                }
+            }
+            throw lastErr;
+        }
+
+        function fmtTime(d) {
+            return d ? d.toTimeString().substring(0, 8) : '--:--:--';
+        }
+
+        function shortErr(msg) {
+            if (!msg) return 'UNKNOWN ERROR';
+            const s = String(msg);
+            return s.length > 44 ? s.slice(0, 44) + '…' : s;
+        }
+
+        function methodLabel(method) {
+            if (method === 'direct') return 'LIVE (DIRECT)';
+            if (method === 'ai-search') return 'LIVE (AI SEARCH)';
+            return null;
+        }
+
+        /* ===================================================================
+           CLAUDE / WEB_SEARCH HELPERS (the fallback path that works inside
+           the Claude.ai artifact sandbox, where raw fetch() to third-party
+           domains is blocked but api.anthropic.com is reachable)
+        =================================================================== */
+        async function callClaude(prompt, { useWebSearch = false, maxTokens = 700, timeoutMs = 25000 } = {}) {
+            const body = {
+                model: 'claude-sonnet-4-6',
+                max_tokens: maxTokens,
+                messages: [{ role: 'user', content: prompt }]
+            };
+            if (useWebSearch) {
+                body.tools = [{ type: 'web_search_20250305', name: 'web_search' }];
+            }
+            const res = await fetchWithTimeout('https://api.anthropic.com/v1/messages', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            }, timeoutMs);
+            if (!res.ok) throw new Error(`Claude API HTTP ${res.status}`);
+            const data = await res.json();
+            const text = (data.content || [])
+                .filter(b => b.type === 'text')
+                .map(b => b.text || '')
+                .join('\n')
+                .trim();
+            if (!text) throw new Error('Claude returned an empty response');
+            return text;
+        }
+
+        function extractJson(text) {
+            const cleaned = text.replace(/```json|```/g, '').trim();
+            try { return JSON.parse(cleaned); } catch (e) { /* fall through */ }
+            const match = cleaned.match(/(\[[\s\S]*\]|\{[\s\S]*\})/);
+            if (match) {
+                try { return JSON.parse(match[0]); } catch (e) { /* fall through */ }
+            }
+            throw new Error('Could not parse JSON from model response');
+        }
+
+        /* ===================================================================
+           DECK 2 — MARKETS
+        =================================================================== */
+        async function fetchStocksDirect() {
+            const equities = [
+                { yahoo: 'SPY', label: 'SPY-CORE' },
+                { yahoo: 'QQQ', label: 'TECH-QQQ' }
+            ];
+            const out = [];
+            for (const eq of equities) {
+                const json = await fetchJsonSmart(`https://query1.finance.yahoo.com/v8/finance/chart/${eq.yahoo}?interval=1d&range=1d`);
+                const meta = json.chart.result[0].meta;
+                const price = meta.regularMarketPrice;
+                const prevClose = meta.chartPreviousClose ?? meta.previousClose ?? price;
+                const changePct = prevClose ? ((price - prevClose) / prevClose) * 100 : 0;
+                out.push({ symbol: eq.label, price: price.toFixed(2), change: parseFloat(changePct.toFixed(2)) });
+            }
+            const cgRes = await fetchWithTimeout('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,solana&vs_currencies=usd&include_24hr_change=true', {}, 6000);
+            if (!cgRes.ok) throw new Error(`CoinGecko HTTP ${cgRes.status}`);
+            const cg = await cgRes.json();
+            out.push({ symbol: 'M-BTC', price: cg.bitcoin.usd.toFixed(2), change: parseFloat(cg.bitcoin.usd_24h_change.toFixed(2)) });
+            out.push({ symbol: 'M-SOL', price: cg.solana.usd.toFixed(2), change: parseFloat(cg.solana.usd_24h_change.toFixed(2)) });
+            return out;
+        }
+
+        async function fetchStocksViaAI() {
+            const prompt = `Search the web for the current price and today's percent change for: the SPDR S&P 500 ETF (ticker SPY), the Invesco QQQ Trust (ticker QQQ), Bitcoin (BTC), and Solana (SOL).
+Respond with ONLY raw JSON, no markdown fences, no commentary, in exactly this shape:
+[{"symbol":"SPY-CORE","price":"123.45","change":0.32},{"symbol":"TECH-QQQ","price":"123.45","change":-0.74},{"symbol":"M-BTC","price":"96420.00","change":1.85},{"symbol":"M-SOL","price":"242.15","change":-3.12}]
+"price" is a plain number string. "change" is a plain signed percent number (today's % change).`;
+            const text = await callClaude(prompt, { useWebSearch: true, maxTokens: 800 });
+            const parsed = extractJson(text);
+            if (!Array.isArray(parsed) || parsed.length < 4) throw new Error('malformed AI stock response');
+            return parsed;
+        }
+
+        async function fetchStocks() {
+            if (isFetchingMarkets) return;
+            isFetchingMarkets = true;
+            renderViewport();
+
+            let method = null;
+            let lastErr = null;
+
+            try {
+                appData.stocks = await fetchStocksDirect();
+                method = 'direct';
+            } catch (e) {
+                lastErr = e;
+                console.error('Direct market sync failed, trying AI web-search fallback.', e);
+                try {
+                    appData.stocks = await fetchStocksViaAI();
+                    method = 'ai-search';
+                } catch (e2) {
+                    lastErr = e2;
+                    console.error('AI market sync also failed.', e2);
+                }
+            }
+
+            appData.stocksLive = !!method;
+            appData.stocksMethod = method;
+            appData.stocksError = method ? null : (lastErr ? (lastErr.message || String(lastErr)) : 'unknown');
+            appData.lastStockSync = new Date();
+            isFetchingMarkets = false;
+            renderViewport();
+        }
+
+        /* -------------------------------------------------------------------
+           MARKETS SEARCH — look up a stock ticker (NYSE, NASDAQ, and S&P 500
+           names are all covered — Yahoo's chart endpoint isn't exchange-
+           limited) and pin it to a personal watchlist below the core feed.
+
+           Ticker-only by design: input is validated against a plain ticker
+           shape before any lookup happens, so this doesn't try to resolve
+           free-text company names — just symbols like AAPL, KO, BRK.B.
+        ------------------------------------------------------------------- */
+        const TICKER_PATTERN = /^[A-Z]{1,5}([.-][A-Z]{1,2})?$/;
+
+        function isValidTickerFormat(symbol) {
+            return TICKER_PATTERN.test(symbol);
+        }
+
+        async function fetchQuoteDirect(symbol) {
+            const json = await fetchJsonSmart(`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=1d`);
+            const result = json && json.chart && json.chart.result && json.chart.result[0];
+            const meta = result && result.meta;
+            if (!meta || meta.regularMarketPrice == null) throw new Error('symbol not found');
+            const price = meta.regularMarketPrice;
+            const prevClose = meta.chartPreviousClose ?? meta.previousClose ?? price;
+            const changePct = prevClose ? ((price - prevClose) / prevClose) * 100 : 0;
+            return {
+                symbol: String(meta.symbol || symbol).toUpperCase(),
+                price: price.toFixed(2),
+                change: parseFloat(changePct.toFixed(2))
+            };
+        }
+
+        async function fetchQuoteViaAI(symbol) {
+            const prompt = `Search the web for the current price and today's percent change for the ticker "${symbol}". This is a stock ticker symbol (NYSE, NASDAQ, or another major exchange — including S&P 500 constituents).
+If this exact ticker cannot be found or does not exist, respond with ONLY: {"error":"not found"}
+Otherwise respond with ONLY raw JSON, no markdown fences, no commentary, in exactly this shape:
+{"symbol":"${symbol}","price":"123.45","change":0.32}
+"price" is a plain number string. "change" is a plain signed percent number (today's % change).`;
+            const text = await callClaude(prompt, { useWebSearch: true, maxTokens: 400 });
+            const parsed = extractJson(text);
+            if (!parsed || parsed.error) throw new Error('symbol not found');
+            if (!parsed.symbol || parsed.price == null) throw new Error('malformed AI quote response');
+            return {
+                symbol: String(parsed.symbol).toUpperCase(),
+                price: String(parsed.price),
+                change: parseFloat(parsed.change) || 0
+            };
+        }
+
+        async function resolveWatchlistEntry(entryId, symbol) {
+            let quote = null, err = null;
+            try {
+                quote = await fetchQuoteDirect(symbol);
+            } catch (e) {
+                err = e;
+                try {
+                    quote = await fetchQuoteViaAI(symbol);
+                } catch (e2) {
+                    err = e2;
+                }
+            }
+
+            const idx = appData.watchlist.findIndex(w => w.id === entryId);
+            if (idx === -1) return; // removed while the lookup was in flight
+            if (quote) {
+                appData.watchlist[idx] = { id: entryId, symbol: quote.symbol, price: quote.price, change: quote.change, status: 'ok', error: null };
+            } else {
+                appData.watchlist[idx] = { id: entryId, symbol, price: '---.--', change: 0, status: 'error', error: err ? (err.message || String(err)) : 'not found' };
+            }
+            saveWatchlistCache();
+            renderViewport();
+        }
+
+        async function addStockToWatchlist() {
+            const inputEl = document.getElementById('stock-search-input');
+            const raw = (inputEl ? inputEl.value : stockSearchQuery).trim();
+            if (!raw) return;
+            const symbol = raw.toUpperCase();
+            stockSearchQuery = '';
+
+            if (!isValidTickerFormat(symbol)) {
+                const entryId = `${symbol}-${Date.now()}`;
+                appData.watchlist = appData.watchlist.filter(w => w.symbol !== symbol);
+                appData.watchlist.unshift({ id: entryId, symbol, price: '---.--', change: 0, status: 'error', error: 'invalid ticker format' });
+                renderViewport();
+                return;
+            }
+
+            const entryId = `${symbol}-${Date.now()}`;
+            appData.watchlist = appData.watchlist.filter(w => w.symbol !== symbol);
+            appData.watchlist.unshift({ id: entryId, symbol, price: '---.--', change: 0, status: 'loading', error: null });
+            renderViewport();
+
+            await resolveWatchlistEntry(entryId, symbol);
+        }
+
+        function removeFromWatchlist(id) {
+            appData.watchlist = appData.watchlist.filter(w => w.id !== id);
+            saveWatchlistCache();
+            renderViewport();
+        }
+
+        function handleStockSearchInput(evt) {
+            stockSearchQuery = evt.target.value;
+        }
+
+        function handleStockSearchKey(evt) {
+            if (evt.key === 'Enter') addStockToWatchlist();
+        }
+
+        /* -------------------------------------------------------------------
+           WATCHLIST CACHE — pinned tickers persist across app close/reopen
+           via localStorage, so the deck doesn't come back empty next launch.
+           Only successfully-resolved (status: 'ok') tickers are cached;
+           errored searches aren't remembered.
+        ------------------------------------------------------------------- */
+        const WATCHLIST_CACHE_KEY = 'adam-watchlist-v1';
+
+        function loadWatchlistCache() {
+            try {
+                const raw = localStorage.getItem(WATCHLIST_CACHE_KEY);
+                if (!raw) return [];
+                const symbols = JSON.parse(raw);
+                return Array.isArray(symbols) ? symbols.filter(s => typeof s === 'string' && isValidTickerFormat(s)) : [];
+            } catch (e) {
+                console.error('Failed to read watchlist cache', e);
+                return [];
+            }
+        }
+
+        function saveWatchlistCache() {
+            try {
+                const symbols = appData.watchlist.filter(w => w.status === 'ok').map(w => w.symbol);
+                localStorage.setItem(WATCHLIST_CACHE_KEY, JSON.stringify(symbols));
+            } catch (e) {
+                console.error('Failed to save watchlist cache', e);
+            }
+        }
+
+        async function initWatchlistFromCache() {
+            const cachedSymbols = loadWatchlistCache();
+            if (!cachedSymbols.length) return;
+
+            const pending = cachedSymbols.map(symbol => {
+                const entryId = `${symbol}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+                appData.watchlist.push({ id: entryId, symbol, price: '---.--', change: 0, status: 'loading', error: null });
+                return { entryId, symbol };
+            });
+            renderViewport();
+
+            await Promise.all(pending.map(p => resolveWatchlistEntry(p.entryId, p.symbol)));
+        }
+
+        /* ===================================================================
+           DECK 3 — WIRE (world news)
+        =================================================================== */
+        async function fetchNewsDirect() {
+            const target = encodeURIComponent('https://feeds.bbci.co.uk/news/world/rss.xml');
+            const res = await fetchWithTimeout(`https://api.rss2json.com/v1/api.json?rss_url=${target}`, {}, 6000);
+            if (!res.ok) throw new Error(`rss2json HTTP ${res.status}`);
+            const data = await res.json();
+            if (!data.items || !data.items.length) throw new Error('empty feed');
+            return data.items.slice(0, 6).map(item => ({ title: item.title.trim() }));
+        }
+
+        async function fetchNewsViaAI() {
+            const prompt = `Search the web for the top 6 world news headlines right now.
+Respond with ONLY raw JSON, no markdown fences, no commentary, in exactly this shape:
+[{"title":"..."},{"title":"..."}]`;
+            const text = await callClaude(prompt, { useWebSearch: true, maxTokens: 800 });
+            const parsed = extractJson(text);
+            if (!Array.isArray(parsed) || parsed.length === 0) throw new Error('malformed AI news response');
+            return parsed;
+        }
+
+        /* ===================================================================
+           DECK 4 — CONFLICT (Active warzones, ranked 1-10 by global impact)
+
+           There's no clean structured public API for "which wars matter most
+           globally right now" — that's an analytical judgment, not a feed —
+           so this deck skips the direct-source tier and goes straight to the
+           AI+web_search path. A small static baseline is kept as a last-resort
+           offline fallback so the deck still shows something if both the
+           network and the AI call are unreachable.
+        =================================================================== */
+        const CONFLICT_BASELINE = [
+            { name: 'Russia-Ukraine War', rank: 9, event: 'Large-scale territorial war with global energy, grain, and security spillover.' },
+            { name: 'Israel-Gaza / Middle East', rank: 9, event: 'Active conflict with wide regional escalation risk and global diplomatic fallout.' },
+            { name: 'Sudan Civil War', rank: 6, event: 'Major internal war driving one of the world\u2019s largest displacement crises.' },
+            { name: 'Myanmar Civil War', rank: 4, event: 'Ongoing multi-front insurgency against the ruling military junta.' },
+            { name: 'Sahel Insurgencies (Mali/Niger/Burkina Faso)', rank: 5, event: 'Jihadist insurgencies destabilizing West Africa\u2019s Sahel belt.' },
+            { name: 'Yemen Civil War', rank: 4, event: 'Protracted conflict with continued Red Sea shipping security implications.' }
+        ];
+
+        async function fetchConflictViaAI() {
+            const prompt = `Search the web for the world's current active armed conflicts and warzones as of today.
+Identify up to 6 of the most significant ongoing conflicts globally (wars, civil wars, major insurgencies).
+For each one, assign a GLOBAL IMPACT RANK from 1 to 10, where 1 means minimal global effect (localized/contained, little outside spillover) and 10 means major global effect (broad geopolitical, economic, security, or humanitarian ramifications felt worldwide).
+Respond with ONLY raw JSON, no markdown fences, no commentary, in exactly this shape, ordered by rank descending:
+[{"name":"short conflict/warzone name","rank":9,"event":"one short line on current status and why it ranks where it does"}]`;
+            const text = await callClaude(prompt, { useWebSearch: true, maxTokens: 900 });
+            const parsed = extractJson(text);
+            if (!Array.isArray(parsed) || parsed.length === 0) throw new Error('malformed AI conflict response');
+            return parsed
+                .map(c => ({ name: c.name || 'UNKNOWN THEATRE', rank: Math.max(1, Math.min(10, Number(c.rank) || 1)), event: c.event || '' }))
+                .sort((a, b) => b.rank - a.rank);
+        }
+
+        async function fetchWireAndConflict() {
+            if (isFetchingWire) return;
+            isFetchingWire = true;
+            renderViewport();
+
+            // --- WIRE ---
+            let newsMethod = null, newsErr = null;
+            try {
+                appData.news = await fetchNewsDirect();
+                newsMethod = 'direct';
+            } catch (e) {
+                newsErr = e;
+                try {
+                    appData.news = await fetchNewsViaAI();
+                    newsMethod = 'ai-search';
+                } catch (e2) {
+                    newsErr = e2;
+                    console.error('Wire feed fully failed', e2);
+                }
+            }
+            appData.newsLive = !!newsMethod;
+            appData.newsMethod = newsMethod;
+            appData.newsError = newsMethod ? null : (newsErr ? (newsErr.message || String(newsErr)) : 'unknown');
+            renderViewport();
+
+            await new Promise(r => setTimeout(r, 500));
+
+            // --- CONFLICT ---
+            let conflictMethod = null, conflictErr = null;
+            try {
+                appData.conflict = await fetchConflictViaAI();
+                conflictMethod = 'ai-search';
+            } catch (e) {
+                conflictErr = e;
+                console.error('Conflict feed fully failed, using static baseline', e);
+                appData.conflict = CONFLICT_BASELINE;
+            }
+            appData.conflictLive = !!conflictMethod;
+            appData.conflictMethod = conflictMethod;
+            appData.conflictError = conflictMethod ? null : (conflictErr ? (conflictErr.message || String(conflictErr)) : 'unknown');
+
+            appData.lastWireSync = new Date();
+            isFetchingWire = false;
+            renderViewport();
+        }
+
+        /* ===================================================================
+           DECK 5 — DISASTERS (USGS earthquakes)
+        =================================================================== */
+        async function fetchDisastersDirect() {
+            const res = await fetchWithTimeout('https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/4.5_day.geojson', {}, 6000);
+            if (!res.ok) throw new Error(`USGS HTTP ${res.status}`);
+            const geo = await res.json();
+            return (geo.features || []).slice(0, 4).map(f => ({
+                name: f.properties.place,
+                type: `M${f.properties.mag}`
+            }));
+        }
+
+        async function fetchDisastersViaAI() {
+            const prompt = `Search the web (USGS or similar) for significant earthquakes of magnitude 4.5 or higher in the last 24 hours.
+Respond with ONLY raw JSON, no markdown fences, no commentary, in exactly this shape:
+[{"name":"location string","type":"M4.7"}]
+Up to 4 items. If there genuinely were none in the last 24h, respond with an empty array: []`;
+            const text = await callClaude(prompt, { useWebSearch: true, maxTokens: 700 });
+            const parsed = extractJson(text);
+            if (!Array.isArray(parsed)) throw new Error('malformed AI disaster response');
+            return parsed;
+        }
+
+        async function fetchDisasters() {
+            if (isFetchingDisasters) return;
+            isFetchingDisasters = true;
+            renderViewport();
+
+            let method = null;
+            let lastErr = null;
+            try {
+                appData.disasters = await fetchDisastersDirect();
+                method = 'direct';
+            } catch (e) {
+                lastErr = e;
+                try {
+                    appData.disasters = await fetchDisastersViaAI();
+                    method = 'ai-search';
+                } catch (e2) {
+                    lastErr = e2;
+                    console.error('Disaster feed fully failed', e2);
+                }
+            }
+
+            appData.disastersLive = !!method;
+            appData.disastersMethod = method;
+            appData.disastersError = method ? null : (lastErr ? (lastErr.message || String(lastErr)) : 'unknown');
+            appData.lastDisasterSync = new Date();
+            isFetchingDisasters = false;
+            renderViewport();
+        }
+
+        /* ===================================================================
+           DECK 1 — STATUS: Claude-generated tactical briefing summarizing
+           whatever live data is currently cached (no web_search needed here —
+           it's just narrating data we already fetched above).
+        =================================================================== */
+        async function fetchBriefing() {
+            if (isFetchingBriefing) return;
+            isFetchingBriefing = true;
+            renderViewport();
+
+            const stockSummary = appData.stocks.map(s => `${s.symbol} $${s.price} (${s.change >= 0 ? '+' : ''}${s.change}%)`).join(', ');
+            const newsSummary = appData.news.slice(0, 4).map(n => n.title).join(' | ') || 'none retrieved';
+            const conflictSummary = appData.conflict.length
+                ? appData.conflict.slice(0, 3).map(c => `${c.name} (IMPACT ${c.rank}/10)`).join(' | ')
+                : 'no active warzone data in feed';
+            const disasterSummary = appData.disasters.length
+                ? appData.disasters.slice(0, 3).map(d => `${d.name} (${d.type})`).join(' | ')
+                : 'no M4.5+ earthquakes in the last 24h';
+
+            try {
+                const prompt = `You are A.D.A.M., a tactical HUD AI, delivering a live status briefing to "Sir" on a smart-glasses display. Using ONLY the live data below, write a short tactical briefing.
+
+FORMAT RULES (follow exactly):
+- Output raw HTML only. No markdown, no code fences, no commentary before or after.
+- Structure: one opening line, then <strong>[FINANCIAL METRICS]</strong>, <strong>[GLOBAL WIRE HEADLINES]</strong>, <strong>[GEOPOLITICAL CONFLICT THEATRES]</strong>, <strong>[CRUSTAL & DISASTER RADAR]</strong>, then one short closing line. Use <br><br> between sections.
+- Entire response in ALL CAPS.
+- This is a tiny glasses display — stay under 110 words total.
+- Tone: dry, precise, calls the user "SIR".
+- Do not invent data that isn't present below.
+
+LIVE DATA:
+Markets: ${stockSummary}
+Wire headlines: ${newsSummary}
+Conflict theatres: ${conflictSummary}
+Disaster radar: ${disasterSummary}`;
+
+                const text = await callClaude(prompt, { useWebSearch: false, maxTokens: 500 });
+                const cleaned = text.replace(/```html|```/g, '').trim();
+                if (!cleaned) throw new Error('empty briefing');
+
+                appData.briefing = cleaned;
+                appData.briefingLive = true;
+                appData.briefingError = null;
+            } catch (e) {
+                console.error('Briefing generation failed, using local template.', e);
+                appData.briefingLive = false;
+                appData.briefingError = e.message || String(e);
+
+                const wireDetails = appData.news.length ? appData.news.map((n, i) => `[WIRE-NODE-${i + 1}]: ${n.title}`).join(' // ') : 'NO FEED CORRIDOR DATA RECOVERED';
+                const conflictDetails = appData.conflict.length ? appData.conflict.map((c, i) => `[THEATRE-INTEL-${i + 1}]: ${c.name} — IMPACT ${c.rank}/10 — ${c.event}`).join(' // ') : 'GEOPOLITICAL BOUNDARIES REPORTING NOMINAL STABILITY';
+                const disasterDetails = appData.disasters.length ? appData.disasters.map((d, i) => `[SEISMIC-NODE-${i + 1}]: ${d.name} REGISTERING ACTIVE ${d.type}`).join(' // ') : 'TECTONIC FAULTS REPORTING NOMINAL CRUST TEMPERATURES';
+
+                const nothingLive = !appData.stocksLive && !appData.newsLive && !appData.conflictLive && !appData.disastersLive;
+                const diagLine = nothingLive
+                    ? `<br><br><strong>[NETWORK DIAGNOSTIC]</strong><br>ALL LIVE FEEDS UNREACHABLE, DIRECT AND AI-SEARCH BOTH. CHECK EACH DECK'S FEED-STATUS LINE FOR THE EXACT ERROR.`
+                    : '';
+
+                appData.briefing = `SIR, OSINT STREAM SYNCHRONIZED. AI NARRATIVE ENGINE UNREACHABLE (${shortErr(appData.briefingError)}) — RUNNING TEMPLATE MODE.<br><br><strong>[FINANCIAL METRICS]</strong><br>${stockSummary}.<br><br><strong>[GLOBAL WIRE HEADLINES]</strong><br>${wireDetails}.<br><br><strong>[GEOPOLITICAL CONFLICT THEATRES]</strong><br>${conflictDetails}.<br><br><strong>[CRUSTAL & DISASTER RADAR]</strong><br>${disasterDetails}.${diagLine}<br><br>MONITORING CONTINUES, SIR.`;
+            }
+
+            isFetchingBriefing = false;
+            renderViewport();
+        }
+
+        /* ===================================================================
+           RENDERING
+        =================================================================== */
+        function switchDeck(index) {
+            activeDeckIndex = index;
+            const decks = document.querySelectorAll('.deck-item');
+            decks.forEach((deck, idx) => {
+                if (idx === index) deck.classList.add('active');
+                else deck.classList.remove('active');
+            });
+            document.getElementById('deck-index-indicator').innerText = `DECK ${activeDeckIndex + 1} / ${TOTAL_DECKS}`;
+            renderViewport();
+        }
+
+        function getCorners() {
+            const netStatus = (isFetchingMarkets || isFetchingWire || isFetchingDisasters || isFetchingBriefing) ? 'NET: INGESTING' : 'NET: LINKED';
+            const sourceMap = ['AI: SONNET 4.6', 'SRC: YFI/CG + AI', 'SRC: BBC + AI', 'SRC: CONFLICT INDEX (AI)', 'SRC: USGS + AI'];
+            return `
+                <span class="corner-indicator top-left">A.D.A.M.: RUNNING</span>
+                <span class="corner-indicator top-right">DECK: 0${activeDeckIndex + 1}</span>
+                <span class="corner-indicator bottom-left">${netStatus}</span>
+                <span class="corner-indicator bottom-right">${sourceMap[activeDeckIndex]}</span>
+            `;
+        }
+
+        function renderViewport() {
+            const target = document.getElementById('viewport-target');
+            let outputHtml = "";
+            const corners = getCorners();
+
+            // Preserve the stock search box's live typing state across re-renders,
+            // since innerHTML gets rebuilt on every sync tick (e.g. every 60s).
+            const prevSearchEl = document.getElementById('stock-search-input');
+            const wasFocused = prevSearchEl === document.activeElement;
+            const selStart = prevSearchEl ? prevSearchEl.selectionStart : null;
+            const selEnd = prevSearchEl ? prevSearchEl.selectionEnd : null;
+
+            switch (activeDeckIndex) {
+                case 0:
+                    outputHtml = `${corners}<div class="briefing-block">`;
+                    outputHtml += `<div class="feed-status"><span>${appData.briefingLive ? 'AI NARRATIVE: LIVE' : 'ERR: ' + shortErr(appData.briefingError)}</span></div>`;
+                    outputHtml += appData.briefing;
+                    outputHtml += `</div>`;
+                    break;
+
+                case 1:
+                    outputHtml = `${corners}<div class="data-grid">`;
+                    outputHtml += `<div class="feed-status"><span>${appData.stocksLive ? methodLabel(appData.stocksMethod) : 'ERR: ' + shortErr(appData.stocksError)}</span><span>SYNC ${fmtTime(appData.lastStockSync)}</span></div>`;
+                    outputHtml += `
+                        <div class="stock-search-bar">
+                            <input id="stock-search-input" class="stock-search-input" type="text"
+                                placeholder="Search ticker (NYSE / NASDAQ)" autocomplete="off"
+                                oninput="handleStockSearchInput(event)" onkeydown="handleStockSearchKey(event)" />
+                            <button class="stock-search-btn" onclick="addStockToWatchlist()">ADD</button>
+                        </div>`;
+                    appData.stocks.forEach(ticker => {
+                        const isPositive = ticker.change >= 0;
+                        outputHtml += `
+                            <div class="hud-row">
+                                <strong>${ticker.symbol}</strong>
+                                <span>$${ticker.price}</span>
+                                <span style="color: ${isPositive ? '#00FF33' : '#FF2A2A'}">
+                                    ${isPositive ? '▲' : '▼'} ${Math.abs(ticker.change)}%
+                                </span>
+                            </div>`;
+                    });
+                    if (appData.watchlist.length > 0) {
+                        outputHtml += `<div class="watchlist-divider">// WATCHLIST</div>`;
+                        appData.watchlist.forEach(w => {
+                            if (w.status === 'loading') {
+                                outputHtml += `
+                                    <div class="hud-row">
+                                        <span class="watchlist-symbol-cell"><strong>${w.symbol}</strong><button class="remove-btn" onclick="removeFromWatchlist('${w.id}')">✕</button></span>
+                                        <span style="opacity:0.6;">SEARCHING...</span>
+                                        <span></span>
+                                    </div>`;
+                            } else if (w.status === 'error') {
+                                outputHtml += `
+                                    <div class="hud-row">
+                                        <span class="watchlist-symbol-cell"><strong>${w.symbol}</strong><button class="remove-btn" onclick="removeFromWatchlist('${w.id}')">✕</button></span>
+                                        <span class="alert-high" style="font-size:11px;">${shortErr(w.error)}</span>
+                                        <span></span>
+                                    </div>`;
+                            } else {
+                                const isPositive = w.change >= 0;
+                                outputHtml += `
+                                    <div class="hud-row">
+                                        <span class="watchlist-symbol-cell"><strong>${w.symbol}</strong><button class="remove-btn" onclick="removeFromWatchlist('${w.id}')">✕</button></span>
+                                        <span>$${w.price}</span>
+                                        <span style="color: ${isPositive ? '#00FF33' : '#FF2A2A'}">
+                                            ${isPositive ? '▲' : '▼'} ${Math.abs(w.change)}%
+                                        </span>
+                                    </div>`;
+                            }
+                        });
+                    }
+                    outputHtml += `</div>`;
+                    break;
+
+                case 2:
+                    outputHtml = `${corners}<div class="data-grid">`;
+                    outputHtml += `<div class="feed-status"><span>${appData.newsLive ? methodLabel(appData.newsMethod) : 'ERR: ' + shortErr(appData.newsError)}</span><span>SYNC ${fmtTime(appData.lastWireSync)}</span></div>`;
+                    if (appData.news.length === 0) {
+                        outputHtml += `<div class="loading-pulse">// AWAITING WIRE UPLINK...</div>`;
+                    } else {
+                        appData.news.forEach(item => {
+                            outputHtml += `
+                                <div class="hud-row wrap-row" style="grid-template-columns: 1fr;">
+                                    <span class="wrap-text" style="color: #FFF;">• ${item.title}</span>
+                                </div>`;
+                        });
+                    }
+                    outputHtml += `</div>`;
+                    break;
+
+                case 3:
+                    outputHtml = `${corners}<div class="data-grid">`;
+                    outputHtml += `<div class="feed-status"><span>${appData.conflictLive ? methodLabel(appData.conflictMethod) : (appData.conflict.length ? 'OFFLINE BASELINE' : 'ERR: ' + shortErr(appData.conflictError))}</span><span>SYNC ${fmtTime(appData.lastWireSync)}</span></div>`;
+                    if (appData.conflict.length === 0) {
+                        outputHtml += `<div class="loading-pulse">// ISOLATING THEATRE VECTORS...</div>`;
+                    } else {
+                        appData.conflict.forEach(item => {
+                            const rank = Math.max(1, Math.min(10, Number(item.rank) || 1));
+                            const rankColor = rank >= 8 ? '#FF2A2A' : (rank >= 5 ? '#FFB020' : '#00FF33');
+                            outputHtml += `
+                                <div class="hud-row wrap-row" style="grid-template-columns: 3fr 1fr;">
+                                    <span class="wrap-text" style="color:#FFF;">
+                                        • <strong>${item.name || 'UNKNOWN THEATRE'}</strong><br>
+                                        <span style="font-size:11px; opacity:0.85; text-transform:none;">${item.event || ''}</span>
+                                    </span>
+                                    <span style="font-size:12px; font-weight:700; text-align:right; color:${rankColor}; text-shadow:0 0 5px ${rankColor};">${rank}/10</span>
+                                </div>`;
+                        });
+                    }
+                    outputHtml += `</div>`;
+                    break;
+
+                case 4:
+                    outputHtml = `${corners}<div class="data-grid">`;
+                    outputHtml += `<div class="feed-status"><span>${appData.disastersLive ? methodLabel(appData.disastersMethod) : 'ERR: ' + shortErr(appData.disastersError)}</span><span>SYNC ${fmtTime(appData.lastDisasterSync)}</span></div>`;
+                    if (appData.disasters.length === 0) {
+                        outputHtml += `<div class="loading-pulse">// MONITORING CRUSTAL ANOMALIES...</div>`;
+                    } else {
+                        appData.disasters.forEach(item => {
+                            outputHtml += `
+                                <div class="hud-row wrap-row" style="grid-template-columns: 3fr 1fr;">
+                                    <span class="wrap-text" style="color:#FFF;">• ${item.name}</span>
+                                    <span style="color:#00FF33; text-align:right;">${item.type}</span>
+                                </div>`;
+                        });
+                    }
+                    outputHtml += `</div>`;
+                    break;
+            }
+            target.innerHTML = outputHtml;
+
+            if (activeDeckIndex === 1) {
+                const newSearchEl = document.getElementById('stock-search-input');
+                if (newSearchEl) {
+                    newSearchEl.value = stockSearchQuery;
+                    if (wasFocused) {
+                        newSearchEl.focus();
+                        if (selStart != null) {
+                            try { newSearchEl.setSelectionRange(selStart, selEnd); } catch (e) { /* no-op */ }
+                        }
+                    }
+                }
+            }
+        }
+
+        /* ===================================================================
+           SYNC SCHEDULING
+           AI-web-search fallbacks cost real tokens/latency, so cadences are
+           conservative — especially markets, which hits the fallback most
+           often. Direct sources (once actually reachable) are cheap and could
+           be polled faster if you tighten these later.
+        =================================================================== */
+        fetchStocks();
+        fetchWireAndConflict();
+        fetchDisasters();
+        initWatchlistFromCache();
+        setTimeout(fetchBriefing, 3000);
+
+        setInterval(fetchStocks, 60000);           // markets: every 60s
+        setInterval(fetchWireAndConflict, 300000);  // wire + conflict: every 5 min
+        setInterval(fetchDisasters, 180000);        // disasters: every 3 min
+        setInterval(fetchBriefing, 60000);          // AI narrative: every 60s
+
+        /* ===================================================================
+           INPUT: swipe (glasses touchpad / phone) + tap (deck bar)
+        =================================================================== */
+        window.addEventListener('touchstart', handleTouchStart, { passive: true });
+        window.addEventListener('touchmove', handleTouchMove, { passive: true });
+        let xDown = null;
+        function handleTouchStart(evt) { xDown = evt.touches[0].clientX; }
+        function handleTouchMove(evt) {
+            if (!xDown) return;
+            let xUp = evt.touches[0].clientX;
+            let xDiff = xDown - xUp;
+            if (Math.abs(xDiff) > 40) {
+                if (xDiff > 0) {
+                    activeDeckIndex = (activeDeckIndex + 1) % TOTAL_DECKS;
+                } else {
+                    activeDeckIndex = (activeDeckIndex - 1 + TOTAL_DECKS) % TOTAL_DECKS;
+                }
+                switchDeck(activeDeckIndex);
+                xDown = null;
+            }
+        }
+
+        setInterval(() => {
+            const d = new Date();
+            document.getElementById('sys-clock').innerText = d.toTimeString().substring(0, 8);
+        }, 1000);
+    </script>
+</body>
+</html>
